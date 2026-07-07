@@ -1,0 +1,193 @@
+// Shared UI helpers: vehicle theming, badges, formatters, authed image loader.
+
+import { useEffect, useState } from "react";
+import { fetchMediaObjectUrl, openLiveStream } from "./api";
+
+export const VEHICLE_TYPES = ["car", "suv", "truck", "van", "pickup", "motorcycle", "bus"];
+
+export const pretty = (s) =>
+  (s || "").toString().replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+export function TypeBadge({ type }) {
+  return (
+    <span className="inline-flex items-center gap-1 border border-gray-600 bg-gray-900 px-2 py-0.5 text-xs font-mono uppercase text-gray-300">
+      {pretty(type || "unknown").slice(0, 3)}
+    </span>
+  );
+}
+
+export function DirectionBadge({ direction }) {
+  const map = {
+    in: { label: "IN", arrow: "→", cls: "border-gray-600 bg-gray-900 text-amber-300" },
+    out: { label: "OUT", arrow: "←", cls: "border-gray-600 bg-gray-900 text-gray-300" },
+    unknown: { label: "UNK", arrow: "–", cls: "border-gray-700 bg-gray-900 text-gray-500" },
+  };
+  const d = map[direction] || map.unknown;
+  return (
+    <span className={`inline-flex items-center gap-1 border px-2 py-0.5 text-xs font-mono uppercase ${d.cls}`}>
+      {d.arrow} {d.label}
+    </span>
+  );
+}
+
+export function Plate({ text }) {
+  if (!text)
+    return <span className="text-xs font-mono text-gray-600">–––––––</span>;
+  return (
+    <span className="border-2 border-gray-200 bg-black px-2 py-1 font-mono text-xs font-bold tracking-wider text-gray-100">
+      {text}
+    </span>
+  );
+}
+
+export function Card({ children, className = "", ...rest }) {
+  return (
+    <div className={`panel ${className}`} {...rest}>
+      {children}
+    </div>
+  );
+}
+
+// Square panel-mount indicator lamp. color: "green" | "amber" | "red" | "off"
+export function Led({ color = "off", blink = false, className = "" }) {
+  const c = { green: "led-green", amber: "led-amber", red: "led-red", off: "" }[color] || "";
+  return <span className={`led ${c} ${blink ? "led-blink" : ""} ${className}`} />;
+}
+
+export function timeAgo(iso) {
+  if (!iso) return "—";
+  const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+export const formatTime = (iso) => (iso ? new Date(iso).toLocaleString() : "—");
+
+// Loads an owner-only image by fetching it with the auth token (a plain <img>
+// can't, since it wouldn't send the bearer token).
+export function AuthImage({ url, alt = "", className = "" }) {
+  const [src, setSrc] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let revoke = null;
+    let alive = true;
+    setSrc(null);
+    setFailed(false);
+    if (url) {
+      fetchMediaObjectUrl(url)
+        .then((obj) => {
+          if (!alive) return;
+          revoke = obj;
+          setSrc(obj);
+        })
+        .catch(() => alive && setFailed(true));
+    }
+    return () => {
+      alive = false;
+      if (revoke) URL.revokeObjectURL(revoke);
+    };
+  }, [url]);
+
+  if (!url || failed)
+    return (
+      <div
+        className={`flex items-center justify-center bg-black text-[10px] text-gray-700 font-mono ${className}`}
+      >
+        — no image —
+      </div>
+    );
+  if (!src)
+    return (
+      <div
+        className={`flex items-center justify-center bg-black text-[10px] text-gray-700 font-mono ${className}`}
+      >
+        loading…
+      </div>
+    );
+  return <img src={src} alt={alt} className={className} />;
+}
+
+// Owner-only live preview for one camera, fed by a held-open MJPEG stream
+// (see `openLiveStream`) rather than re-fetching a frame on a timer. Measures
+// the achieved frame rate and reports it via `onFps`. Marks itself offline if
+// no frame arrives for a few seconds (stream frozen / camera stopped pushing).
+export function LiveImage({ camId, onFps, className = "" }) {
+  const [src, setSrc] = useState(null);
+  const [online, setOnline] = useState(false);
+  const [fps, setFps] = useState(0);
+
+  useEffect(() => {
+    let lastObj = null;
+    let offlineTimer = null;
+    const stamps = [];
+
+    setSrc(null);
+    setOnline(false);
+    setFps(0);
+    if (!camId) return undefined;
+
+    const markOffline = () => {
+      setOnline(false);
+      setFps(0);
+      onFps && onFps(0);
+    };
+
+    const stop = openLiveStream(camId, (jpegBytes) => {
+      const url = URL.createObjectURL(new Blob([jpegBytes], { type: "image/jpeg" }));
+      if (lastObj) URL.revokeObjectURL(lastObj);
+      lastObj = url;
+      setSrc(url);
+      setOnline(true);
+      // Measure achieved receive-rate over the last ~30 frames.
+      const now = performance.now();
+      stamps.push(now);
+      if (stamps.length > 30) stamps.shift();
+      if (stamps.length >= 2) {
+        const span = (stamps[stamps.length - 1] - stamps[0]) / 1000;
+        const r = span > 0 ? (stamps.length - 1) / span : 0;
+        setFps(r);
+        onFps && onFps(r);
+      }
+      clearTimeout(offlineTimer);
+      offlineTimer = setTimeout(markOffline, 3000);
+    });
+
+    return () => {
+      stop();
+      clearTimeout(offlineTimer);
+      if (lastObj) URL.revokeObjectURL(lastObj);
+    };
+  }, [camId, onFps]);
+
+  return (
+    <div className={`relative overflow-hidden bg-black ${className}`}>
+      {src ? (
+        <img src={src} alt="live" className="h-full w-full object-contain" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-xs font-mono text-gray-700">
+          {camId ? "connecting…" : "select camera"}
+        </div>
+      )}
+      {online && (
+        <span className="absolute left-2 top-2 border border-gray-600 bg-black/80 px-2 py-1 font-mono text-[10px] text-amber-300">
+          {fps.toFixed(1)} fps
+        </span>
+      )}
+      <span
+        className={`absolute right-2 top-2 inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono border uppercase tracking-widest ${
+          online
+            ? "border-red-400/60 bg-black/80 text-red-300 font-bold"
+            : "border-gray-700 bg-black/80 text-gray-500"
+        }`}
+      >
+        <span className={`led ${online ? "led-red led-blink" : ""}`} />
+        {online ? "LIVE" : "OFFLINE"}
+      </span>
+    </div>
+  );
+}

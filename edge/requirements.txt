@@ -1,0 +1,7 @@
+# EisenFieder Surveillance — edge (laptop / mock) requirements.
+# The mock pipeline runs with just these light, pure-Python-friendly deps.
+
+PyYAML>=6.0
+requests>=2.31
+python-dotenv>=1.0     # optional .env loading
+Pillow>=10.0           # draws the YOLO-style annotated stills (degrades gracefully if absent)

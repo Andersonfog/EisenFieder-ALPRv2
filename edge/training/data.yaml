@@ -1,0 +1,16 @@
+# EisenFieder Surveillance — custom vehicle detection dataset
+# Fine-grained classes vs COCO's coarse car/truck/bus/motorcycle
+
+path: .   # relative to this file (edge/training/)
+train: images/train
+val: images/val
+
+nc: 7
+names:
+  0: car
+  1: suv
+  2: truck
+  3: van
+  4: pickup
+  5: motorcycle
+  6: bus

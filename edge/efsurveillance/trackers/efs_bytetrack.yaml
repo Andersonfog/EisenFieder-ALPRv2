@@ -1,0 +1,15 @@
+# EisenFieder ByteTrack tuning (ultralytics tracker format).
+#
+# One change from the stock bytetrack.yaml: track_buffer 30 -> 90. That is how
+# many DETECTION CYCLES a lost track is kept alive; on a CPU unit detecting at
+# ~5 fps the stock 30 was only ~6 seconds. With 90, a vehicle briefly hidden
+# behind a passing car (or missed for a few frames) keeps its track id instead
+# of coming back as a "new" vehicle — which used to duplicate log entries and
+# re-trigger parked cars.
+tracker_type: bytetrack
+track_high_thresh: 0.25
+track_low_thresh: 0.1
+new_track_thresh: 0.25
+track_buffer: 90
+match_thresh: 0.7
+fuse_score: True

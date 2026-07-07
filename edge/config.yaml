@@ -1,0 +1,70 @@
+# EisenFieder Surveillance — edge camera config (non-secret tunables).
+# Secrets/per-machine overrides go in .env or EISENFIEDER_* environment vars.
+
+camera:
+  id: EFS-DEV-0001          # MUST match the serial you registered in the console
+  name: Dev Laptop Simulator
+  location: Front entrance
+
+source:
+  backend: auto             # auto | synthetic | picamera2 | usb | rtsp | file
+  # Pi 5 ALPR profiles: sharp_read | fast_lane | night_boost | pi_economy | custom
+  # sharp_read favors plate detail; fast_lane freezes motion; pi_economy runs cooler.
+  quality_profile: sharp_read
+  usb_index: 0
+  file_path: data/sample.mp4
+  # Detection passes per second CAP. The loop always works on the newest frame
+  # (never falls behind), so set this high and let the hardware be the limit —
+  # a low cap starves the tracker (a passing car shows up in only a few frames).
+  process_fps: 12.0
+  width: 2304
+  height: 1296
+  fps: 24.0
+  fourcc: MJPG
+  shutter_us: 1000
+  analogue_gain: 1.5
+  denoise: cdn_fast
+
+detector:
+  backend: auto             # auto | yolo | mock  (drives the whole AI stack)
+  model_path: yolov8n.pt
+  # Lower gate = catches more distant/partial vehicles; the tracker's
+  # min-frames rule already filters out one-frame false flickers.
+  confidence_threshold: 0.30
+  device: cpu
+  mock_interval_seconds: 3.0
+  # ALPR (license plates): the plate is read on every frame of a vehicle's
+  # pass and the reads are FUSED (character voting) into one answer — much
+  # more accurate than any single frame. See edge/ALPR.md.
+  alpr_reads_per_track: 10        # OCR budget per vehicle pass
+  alpr_min_vehicle_px: 56         # skip OCR while the vehicle is tinier than this (px tall)
+  alpr_retry_below_conf: 0.90     # weak read -> retry on an enhanced (upscaled) crop
+  alpr_min_read_conf: 0.50        # weaker than this = noise, discarded
+  alpr_format_correction: true    # fix O<->0 / I<->1 mixups only when a real plate layout confirms
+  alpr_lock_after_agree: 3        # stop reading once this many confident reads agree (saves CPU; 0 = never)
+  alpr_skip_blur_below: 8.0       # skip motion-blurred frames before OCR (0 = off)
+  # Make/model classifier — OFF until you've MEASURED a model on real crops.
+  # See edge/MAKEMODEL.md. Leave off to keep make/model blank (never guessed).
+  makemodel_backend: "off"        # "off" | "onnx"
+  makemodel_model_path: ""        # e.g. models/makemodel.onnx
+  makemodel_labels_path: ""       # e.g. models/makemodel_labels.txt
+  makemodel_min_confidence: 0.60  # below this the field stays blank
+  makemodel_input_size: 224
+
+events:
+  db_path: data/events.db
+  image_dir: data/events
+  cooldown_seconds: 8.0
+
+uploader:
+  enabled: false            # set true (and BACKEND_URL/token in .env) to sync
+  backend_url: ""
+  poll_interval_seconds: 10.0
+  delete_local_after_upload: true
+  live_enabled: true
+  live_fps: 12.0
+  live_max_width: 1280
+  live_jpeg_quality: 78
+
+logging:
+  level: INFO

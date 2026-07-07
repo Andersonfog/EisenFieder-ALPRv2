@@ -1,0 +1,27 @@
+# EisenFieder Surveillance — Raspberry Pi (real AI) requirements.
+# Installs on top of requirements.txt. This is where the real models live.
+
+-r requirements.txt
+
+opencv-python>=4.8        # real frame capture + saving stills/crops
+numpy>=1.24
+ultralytics>=8.1          # YOLO vehicle detection (detector.YoloVehicleDetector)
+fast-alpr>=0.4            # real license-plate OCR (plate_reader.RealPlateReader)
+# fast-alpr pulls onnxruntime + fast-plate-ocr; downloads its models on first run.
+# Alternatives: OpenALPR, or a Hailo-accelerated plate model on the Pi 5 AI Kit.
+
+easyocr>=1.7             # real company-name OCR (recognizer.CompanyReader)
+# easyocr downloads its detector+recognizer models on first run, then caches them.
+# Optional: if not installed, company names are left blank (never faked).
+
+# Make/model classifier (optional) for recognizer.MakeModelClassifier. Colour is
+# measured and company branding is OCR'd; make/model are the last blank fields.
+# The classifier runs an ONNX model via onnxruntime (already pulled in by
+# fast-alpr above). Supply your own model + labels and MEASURE it first with
+# tools/measure_make_model.py — see edge/MAKEMODEL.md. It stays OFF (make/model
+# left blank, never guessed) until you enable it in config.yaml.
+#   onnxruntime            # already installed with fast-alpr
+#   timm>=1.0              # only if you TRAIN/EXPORT your own classifier
+
+# Raspberry Pi camera (installed via apt as python3-picamera2 on Pi OS):
+#   picamera2
