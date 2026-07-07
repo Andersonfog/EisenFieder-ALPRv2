@@ -1,8 +1,8 @@
 export const ALPR_PROFILES = [
   {
     id: "sharp_read",
-    label: "Sharp read",
-    short: "SHARP",
+    label: "High detail",
+    short: "DETAIL",
     resolution: "2304x1296",
     fps: 24,
     processFps: 12,
@@ -11,17 +11,17 @@ export const ALPR_PROFILES = [
   },
   {
     id: "fast_lane",
-    label: "Fast lane",
+    label: "Fast traffic",
     short: "FAST",
     resolution: "1920x1080",
     fps: 60,
     processFps: 30,
-    purpose: "motion freeze",
+    purpose: "fast traffic",
     bitrate: "12 Mbps",
   },
   {
     id: "track_boost",
-    label: "Track boost",
+    label: "Tracking priority",
     short: "TRACK",
     resolution: "1280x720",
     fps: 60,
@@ -31,7 +31,7 @@ export const ALPR_PROFILES = [
   },
   {
     id: "night_boost",
-    label: "Night boost",
+    label: "Low light",
     short: "NIGHT",
     resolution: "1920x1080",
     fps: 20,
@@ -40,17 +40,38 @@ export const ALPR_PROFILES = [
     bitrate: "9 Mbps",
   },
   {
-    id: "pi_economy",
-    label: "Pi economy",
+    id: "workstation_track",
+    label: "Workstation tracking",
+    short: "WORKSTN",
+    resolution: "1920x1080",
+    fps: 60,
+    processFps: 60,
+    purpose: "max tracking cadence",
+    bitrate: "14 Mbps",
+  },
+  {
+    id: "gpu_detail",
+    label: "GPU detail",
+    short: "GPU",
+    resolution: "2560x1440",
+    fps: 30,
+    processFps: 30,
+    purpose: "high-resolution GPU",
+    bitrate: "18 Mbps",
+  },
+  {
+    id: "edge_economy",
+    label: "Edge economy",
     short: "ECO",
     resolution: "1280x720",
     fps: 30,
     processFps: 8,
-    purpose: "low heat",
+    purpose: "low power",
     bitrate: "5 Mbps",
   },
 ];
 
 export function profileById(id) {
-  return ALPR_PROFILES.find((p) => p.id === id) || ALPR_PROFILES[0];
+  const normalized = id === "pi_economy" ? "edge_economy" : id;
+  return ALPR_PROFILES.find((p) => p.id === normalized) || ALPR_PROFILES[0];
 }

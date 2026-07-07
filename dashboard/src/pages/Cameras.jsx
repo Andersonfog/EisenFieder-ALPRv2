@@ -1,109 +1,93 @@
 import { useEffect, useState } from "react";
 import {
-  apiCameras, apiDeleteCamera, apiRegisterCamera, apiRegenerateToken,
+  apiCameras,
+  apiDeleteCamera,
+  apiRegisterCamera,
+  apiRegenerateToken,
   apiUpdateCameraSettings,
 } from "../api";
 import { ALPR_PROFILES, profileById } from "../alprProfiles";
-import { Card, VEHICLE_TYPES, formatTime, pretty, timeAgo } from "../ui.jsx";
+import { Card, VEHICLE_TYPES, pretty, timeAgo } from "../ui.jsx";
 
 export default function Cameras() {
   const [cameras, setCameras] = useState([]);
   const [registering, setRegistering] = useState(false);
-  const [credential, setCredential] = useState(null); // {id, api_token, env_snippet}
+  const [credential, setCredential] = useState(null);
   const [settingsFor, setSettingsFor] = useState(null);
 
   const load = () => apiCameras().then(setCameras).catch(() => {});
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="app-page space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="stencil text-sm text-gray-400">Cameras</h1>
-          <p className="mt-1 text-xs text-gray-600 font-mono">Entrance units reporting to system</p>
+          <p className="page-kicker">Cameras</p>
+          <h1 className="page-title">Camera fleet</h1>
+          <p className="page-copy">Register USB, RTSP, or edge cameras and tune their tracking profiles.</p>
         </div>
-        <button
-          onClick={() => setRegistering(true)}
-          className="border border-amber-500 bg-amber-400 px-4 py-2 text-xs font-mono uppercase font-bold tracking-widest text-black hover:bg-amber-300 transition"
-        >
-          Register
+        <button onClick={() => setRegistering(true)} className="btn-primary">
+          Register camera
         </button>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {cameras.map((c) => {
-          const online = c.status === "online";
-          const profile = profileById(c.settings?.quality_profile);
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {cameras.map((camera) => {
+          const online = camera.status === "online";
+          const profile = profileById(camera.settings?.quality_profile);
           return (
-            <Card key={c.id} className={`p-4 border-t-2 ${online ? "border-t-amber-400" : "border-t-gray-700"}`}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="font-semibold text-gray-200">{c.name || c.id}</div>
-                  <div className="font-mono text-[10px] text-gray-600 mt-1">{c.id}</div>
-                  {c.location && (
-                    <div className="text-[10px] text-gray-600 mt-1">{c.location}</div>
-                  )}
+            <Card key={camera.id} className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="truncate font-semibold text-gray-100">{camera.name || camera.id}</h2>
+                  <p className="mt-1 truncate text-sm text-gray-500">{camera.location || "Unlabeled location"}</p>
+                  <p className="mt-1 truncate text-xs text-gray-600">{camera.id}</p>
                 </div>
                 <span
-                  className={`inline-flex items-center gap-1.5 border px-1.5 py-0.5 text-[10px] uppercase font-mono ${
-                    online
-                      ? "border-emerald-400/50 bg-gray-950 text-emerald-300 font-bold"
-                      : "border-gray-700 bg-gray-950 text-gray-500"
+                  className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs ${
+                    online ? "border-emerald-400/40 text-emerald-300" : "border-gray-700 text-gray-500"
                   }`}
                 >
                   <span className={`led ${online ? "led-green" : ""}`} />
-                  {c.status}
+                  {online ? "Online" : "Idle"}
                 </span>
               </div>
-              <div className="mt-2 text-[10px] text-gray-600 font-mono">
-                last: {c.last_seen ? timeAgo(c.last_seen) : "never"}
+
+              <p className="mt-4 text-sm text-gray-500">
+                Last seen: {camera.last_seen ? timeAgo(camera.last_seen) : "never"}
+              </p>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <Metric label="Profile" value={profile.short} hot />
+                <Metric label="Frame" value={profile.resolution} />
+                <Metric label="FPS" value={profile.fps} />
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-1 text-[10px] font-mono">
-                <div className="border border-gray-800 bg-gray-950/60 p-2">
-                  <div className="text-gray-600 uppercase tracking-widest">profile</div>
-                  <div className="mt-1 font-bold text-amber-300">{profile.short}</div>
-                </div>
-                <div className="border border-gray-800 bg-gray-950/60 p-2">
-                  <div className="text-gray-600 uppercase tracking-widest">res</div>
-                  <div className="mt-1 text-gray-300">{profile.resolution}</div>
-                </div>
-                <div className="border border-gray-800 bg-gray-950/60 p-2">
-                  <div className="text-gray-600 uppercase tracking-widest">fps</div>
-                  <div className="mt-1 text-gray-300">{profile.fps}</div>
-                </div>
-              </div>
-              <div className="mt-3 flex gap-1">
-                <button
-                  onClick={() => setSettingsFor(c)}
-                  className="border border-gray-700 bg-gray-950 px-2 py-1 text-[10px] font-mono text-gray-400 hover:border-amber-400 hover:text-amber-300 transition flex-1"
-                >
-                  CFG
+
+              <div className="mt-5 flex gap-2">
+                <button onClick={() => setSettingsFor(camera)} className="btn-secondary flex-1">
+                  Settings
                 </button>
                 <button
-                  onClick={() =>
-                    apiRegenerateToken(c.id).then((r) => setCredential(r)).then(load)
-                  }
-                  className="border border-gray-700 bg-gray-950 px-2 py-1 text-[10px] font-mono text-gray-400 hover:border-amber-400 hover:text-amber-300 transition flex-1"
+                  onClick={() => apiRegenerateToken(camera.id).then((r) => setCredential(r)).then(load)}
+                  className="btn-secondary flex-1"
                 >
-                  KEY
+                  Token
                 </button>
                 <button
                   onClick={() => {
-                    if (confirm(`Delete ${c.id}?`)) apiDeleteCamera(c.id).then(load);
+                    if (confirm(`Delete ${camera.id}?`)) apiDeleteCamera(camera.id).then(load);
                   }}
-                  className="border border-gray-700 bg-gray-950 px-2 py-1 text-[10px] font-mono text-gray-400 hover:border-red-400 hover:text-red-300 transition flex-1"
+                  className="btn-secondary flex-1 hover:border-red-400 hover:text-red-300"
                 >
-                  DEL
+                  Delete
                 </button>
               </div>
             </Card>
           );
         })}
-        {cameras.length === 0 && (
-          <div className="text-xs text-gray-600 font-mono">
-            — no cameras registered —
-          </div>
-        )}
+        {cameras.length === 0 && <div className="muted-empty">No cameras registered.</div>}
       </div>
 
       {registering && (
@@ -116,9 +100,7 @@ export default function Cameras() {
           }}
         />
       )}
-      {credential && (
-        <CredentialModal cred={credential} onClose={() => setCredential(null)} />
-      )}
+      {credential && <CredentialModal cred={credential} onClose={() => setCredential(null)} />}
       {settingsFor && (
         <SettingsModal
           camera={settingsFor}
@@ -129,6 +111,17 @@ export default function Cameras() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function Metric({ label, value, hot }) {
+  return (
+    <div className="rounded-md border border-gray-800 bg-gray-950/50 p-3">
+      <div className="text-xs text-gray-500">{label}</div>
+      <div className={`mt-1 truncate text-sm ${hot ? "font-semibold text-amber-300" : "text-gray-200"}`}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -152,25 +145,30 @@ function RegisterModal({ onClose, onDone }) {
 
   return (
     <Overlay onClose={onClose}>
-      <h2 className="mb-4 text-xs stencil text-gray-300">Register Camera</h2>
-      <form onSubmit={submit} className="space-y-3">
-        <Input label="Serial" value={form.serial_number}
-          onChange={(v) => setForm({ ...form, serial_number: v })} required
-          placeholder="EFS-SN-00231" />
-        <Input label="Name" value={form.name}
-          onChange={(v) => setForm({ ...form, name: v })} placeholder="FRONT GATE" />
-        <Input label="Location" value={form.location}
-          onChange={(v) => setForm({ ...form, location: v })} placeholder="MAIN ENTRANCE" />
-        {error && (
-          <div className="border border-red-400/60 bg-red-950/40 px-2 py-1 text-xs font-mono font-bold uppercase text-red-300">
-            {error}
-          </div>
-        )}
-        <button
-          disabled={busy}
-          className="w-full border border-amber-500 bg-amber-400 px-4 py-2 text-xs font-mono uppercase font-bold tracking-widest text-black hover:bg-amber-300 disabled:opacity-40 transition"
-        >
-          {busy ? "Registering…" : "Register"}
+      <h2 className="section-title">Register camera</h2>
+      <form onSubmit={submit} className="mt-4 space-y-3">
+        <Input
+          label="Serial"
+          value={form.serial_number}
+          onChange={(v) => setForm({ ...form, serial_number: v })}
+          required
+          placeholder="EFS-SN-00231"
+        />
+        <Input
+          label="Name"
+          value={form.name}
+          onChange={(v) => setForm({ ...form, name: v })}
+          placeholder="Front gate"
+        />
+        <Input
+          label="Location"
+          value={form.location}
+          onChange={(v) => setForm({ ...form, location: v })}
+          placeholder="Main entrance"
+        />
+        {error && <div className="rounded-md border border-red-400/50 bg-red-950/30 p-3 text-sm text-red-300">{error}</div>}
+        <button disabled={busy} className="btn-primary w-full disabled:opacity-50">
+          {busy ? "Registering..." : "Register"}
         </button>
       </form>
     </Overlay>
@@ -180,18 +178,13 @@ function RegisterModal({ onClose, onDone }) {
 function CredentialModal({ cred, onClose }) {
   return (
     <Overlay onClose={onClose}>
-      <h2 className="mb-2 text-xs stencil text-gray-300">Camera Paired</h2>
-      <p className="mb-4 text-xs text-gray-600 font-mono">
-        Copy into .env file. Token shown <span className="text-amber-300 font-bold">only once</span>.
-      </p>
-      <pre className="overflow-x-auto border border-gray-700 bg-gray-950 p-3 text-[11px] text-gray-300 font-mono break-words whitespace-pre-wrap">
+      <h2 className="section-title">Camera paired</h2>
+      <p className="mt-2 text-sm text-gray-500">Token is shown once. Put this in the edge `.env` file.</p>
+      <pre className="mt-4 max-h-64 overflow-auto rounded-md border border-gray-800 bg-gray-950 p-3 text-xs text-gray-300">
 {cred.env_snippet}
       </pre>
-      <button
-        onClick={() => navigator.clipboard?.writeText(cred.env_snippet)}
-        className="mt-3 w-full border border-gray-700 bg-gray-950 px-3 py-1.5 text-xs font-mono text-gray-400 hover:border-amber-400 hover:text-amber-300 transition"
-      >
-        COPY
+      <button onClick={() => navigator.clipboard?.writeText(cred.env_snippet)} className="btn-secondary mt-4 w-full">
+        Copy snippet
       </button>
     </Overlay>
   );
@@ -206,20 +199,18 @@ function SettingsModal({ camera, onClose, onSaved }) {
     capture_occupants: s.capture_occupants ?? true,
     capture_company: s.capture_company ?? true,
     alerts_enabled: s.alerts_enabled ?? true,
-    quality_profile: s.quality_profile || "sharp_read",
+    quality_profile: s.quality_profile || "workstation_track",
     enhance_plate: s.enhance_plate ?? true,
     lock_exposure: s.lock_exposure ?? true,
     edge_only: s.edge_only ?? true,
   });
   const [busy, setBusy] = useState(false);
 
-  function toggleType(t) {
-    const has = form.excluded_types.includes(t);
+  function toggleType(type) {
+    const has = form.excluded_types.includes(type);
     setForm({
       ...form,
-      excluded_types: has
-        ? form.excluded_types.filter((x) => x !== t)
-        : [...form.excluded_types, t],
+      excluded_types: has ? form.excluded_types.filter((x) => x !== type) : [...form.excluded_types, type],
     });
   }
 
@@ -238,119 +229,107 @@ function SettingsModal({ camera, onClose, onSaved }) {
   }
 
   const Check = ({ k, label }) => (
-    <label className="flex items-center gap-2 text-xs font-mono text-gray-300 cursor-pointer">
+    <label className="flex items-center gap-2 text-sm text-gray-300">
       <input
         type="checkbox"
         checked={form[k]}
         onChange={(e) => setForm({ ...form, [k]: e.target.checked })}
-        className="w-4 h-4"
+        className="h-4 w-4"
       />
       {label}
     </label>
   );
 
   return (
-    <Overlay onClose={onClose}>
-      <h2 className="mb-1 text-xs stencil text-gray-300">{camera.name || camera.id}</h2>
-      <p className="mb-4 text-[10px] text-gray-600 font-mono">ALPR camera settings</p>
+    <Overlay onClose={onClose} wide>
+      <h2 className="section-title">{camera.name || camera.id}</h2>
+      <p className="mt-1 text-sm text-gray-500">Camera settings</p>
 
-      <div className="space-y-4 text-xs">
+      <div className="mt-5 space-y-5">
         <div>
-          <div className="mb-2 text-[10px] uppercase tracking-widest text-gray-600 font-mono">
-            Pi 5 quality profile
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {ALPR_PROFILES.map((p) => {
-              const active = form.quality_profile === p.id;
+          <div className="mb-2 text-sm font-semibold text-gray-300">Hardware profile</div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {ALPR_PROFILES.map((profile) => {
+              const active = form.quality_profile === profile.id;
               return (
                 <button
-                  key={p.id}
-                  onClick={() => setForm({ ...form, quality_profile: p.id })}
-                  className={`border p-2 text-left transition ${
+                  key={profile.id}
+                  onClick={() => setForm({ ...form, quality_profile: profile.id })}
+                  className={`rounded-md border p-3 text-left transition ${
                     active
-                      ? "border-amber-400 bg-amber-400/10 text-amber-300"
-                      : "border-gray-800 bg-gray-950 text-gray-400 hover:border-amber-400 hover:text-amber-300"
+                      ? "border-amber-400/70 bg-amber-400/10 text-amber-300"
+                      : "border-gray-800 bg-gray-950/60 text-gray-300 hover:border-gray-600"
                   }`}
                 >
-                  <div className="font-mono text-xs font-bold">{p.short}</div>
-                  <div className="mt-1 text-[10px] text-gray-600">{p.resolution} @ {p.fps}fps</div>
-                  <div className="mt-1 text-[9px] uppercase tracking-wider text-gray-600">
-                    {p.purpose}
+                  <div className="font-semibold">{profile.label}</div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    {profile.resolution} at {profile.fps} fps, {profile.purpose}
                   </div>
                 </button>
               );
             })}
           </div>
-          <p className="mt-2 text-[10px] text-gray-600 font-mono">
-            Edge units apply profile changes on their next config pull/restart.
-          </p>
         </div>
 
         <div>
-          <div className="mb-2 text-[10px] uppercase tracking-widest text-gray-600 font-mono">
-            Exclude types
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {VEHICLE_TYPES.map((t) => {
-              const off = form.excluded_types.includes(t);
+          <div className="mb-2 text-sm font-semibold text-gray-300">Exclude vehicle types</div>
+          <div className="flex flex-wrap gap-2">
+            {VEHICLE_TYPES.map((type) => {
+              const off = form.excluded_types.includes(type);
               return (
                 <button
-                  key={t}
-                  onClick={() => toggleType(t)}
-                  className={`border px-2 py-1 text-[10px] uppercase font-mono transition ${
+                  key={type}
+                  onClick={() => toggleType(type)}
+                  className={`rounded-md border px-3 py-1.5 text-sm transition ${
                     off
                       ? "border-gray-700 bg-gray-950 text-gray-600 line-through"
-                      : "border-gray-500 bg-gray-900 text-gray-200 hover:border-amber-400 hover:text-amber-300"
+                      : "border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500"
                   }`}
                 >
-                  {pretty(t).slice(0, 3)}
+                  {pretty(type)}
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Check k="capture_plate" label="READ PLATES" />
-          <Check k="capture_occupants" label="COUNT" />
-          <Check k="capture_company" label="COMPANY" />
-          <Check k="alerts_enabled" label="ALERTS" />
-          <Check k="enhance_plate" label="ENHANCE PLATE" />
-          <Check k="lock_exposure" label="LOCK EXPOSURE" />
-          <Check k="edge_only" label="EDGE ONLY" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Check k="capture_plate" label="Read plates" />
+          <Check k="capture_occupants" label="Count occupants" />
+          <Check k="capture_company" label="Read company marks" />
+          <Check k="alerts_enabled" label="Watchlist alerts" />
+          <Check k="enhance_plate" label="Enhance plate crops" />
+          <Check k="lock_exposure" label="Lock exposure" />
+          <Check k="edge_only" label="Local processing" />
         </div>
 
         <Input
-          label="Min confidence"
+          label="Minimum confidence"
           value={form.min_confidence}
           onChange={(v) => setForm({ ...form, min_confidence: v })}
           placeholder="0.5"
         />
       </div>
 
-      <div className="mt-5 flex justify-end gap-2">
-        <button onClick={onClose} className="border border-gray-700 bg-gray-950 px-4 py-1.5 text-xs font-mono uppercase text-gray-400 hover:border-amber-400 hover:text-amber-300 transition">
-          CANCEL
+      <div className="mt-6 flex justify-end gap-2">
+        <button onClick={onClose} className="btn-secondary">
+          Cancel
         </button>
-        <button
-          onClick={save}
-          disabled={busy}
-          className="border border-amber-500 bg-amber-400 px-4 py-1.5 text-xs font-mono uppercase font-bold tracking-widest text-black hover:bg-amber-300 disabled:opacity-40 transition"
-        >
-          {busy ? "Saving…" : "Save"}
+        <button onClick={save} disabled={busy} className="btn-primary disabled:opacity-50">
+          {busy ? "Saving..." : "Save"}
         </button>
       </div>
     </Overlay>
   );
 }
 
-function Overlay({ children, onClose }) {
+function Overlay({ children, onClose, wide = false }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-      onClick={onClose}
-    >
-      <Card className="w-full max-w-md p-6 border-t-4 border-t-amber-400" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onClick={onClose}>
+      <Card
+        className={`max-h-[90vh] w-full overflow-y-auto p-6 ${wide ? "max-w-3xl" : "max-w-md"}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
       </Card>
     </div>
@@ -359,15 +338,15 @@ function Overlay({ children, onClose }) {
 
 function Input({ label, value, onChange, placeholder, required }) {
   return (
-    <div>
-      <label className="mb-1 block text-[10px] font-mono uppercase tracking-widest text-gray-600">{label}</label>
+    <label className="block">
+      <span className="mb-1 block text-sm text-gray-500">{label}</span>
       <input
         required={required}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-mono outline-none focus:border-amber-400 placeholder-gray-600"
+        className="input-control"
       />
-    </div>
+    </label>
   );
 }

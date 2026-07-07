@@ -9,7 +9,9 @@ export default function Watchlist() {
   const [busy, setBusy] = useState(false);
 
   const load = () => apiWatchlist().then(setEntries).catch((e) => setError(e.message));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   async function add(e) {
     e.preventDefault();
@@ -27,98 +29,92 @@ export default function Watchlist() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="app-page space-y-6">
       <div>
-        <h1 className="stencil text-sm text-gray-400">Watchlist</h1>
-        <p className="mt-1 text-xs text-gray-600 font-mono">
-          Flag plates for automatic alerts on matching vehicles
-        </p>
+        <p className="page-kicker">Watchlist</p>
+        <h1 className="page-title">Alert plates</h1>
+        <p className="page-copy">Flag plates for automatic alerts when matching vehicles are captured.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="p-5 border-t-2 border-t-amber-400">
-          <h2 className="mb-3 text-xs stencil text-gray-500">Add plate</h2>
-          <form onSubmit={add} className="space-y-3">
+      <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <Card className="p-5">
+          <h2 className="section-title">Add plate</h2>
+          <form onSubmit={add} className="mt-4 space-y-3">
             <input
               required
-              placeholder="PLATE"
+              placeholder="Plate"
               value={form.plate_text}
               onChange={(e) => setForm({ ...form, plate_text: e.target.value })}
-              className="w-full border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-mono outline-none focus:border-amber-400 placeholder-gray-600"
+              className="input-control"
             />
             <input
-              placeholder="LABEL"
+              placeholder="Label"
               value={form.label}
               onChange={(e) => setForm({ ...form, label: e.target.value })}
-              className="w-full border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-mono outline-none focus:border-amber-400 placeholder-gray-600"
+              className="input-control"
             />
             <input
-              placeholder="REASON (OPT)"
+              placeholder="Reason"
               value={form.reason}
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              className="w-full border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-mono outline-none focus:border-amber-400 placeholder-gray-600"
+              className="input-control"
             />
-            {error && (
-              <div className="border border-red-400/60 bg-red-950/40 px-2 py-1 text-xs font-mono font-bold uppercase text-red-300">
-                {error}
-              </div>
-            )}
-            <button
-              disabled={busy}
-              className="w-full border border-amber-500 bg-amber-400 px-4 py-2 text-xs font-mono uppercase font-bold tracking-widest text-black hover:bg-amber-300 disabled:opacity-40 transition"
-            >
-              {busy ? "Adding…" : "Add"}
+            {error && <div className="rounded-md border border-red-400/50 bg-red-950/30 p-3 text-sm text-red-300">{error}</div>}
+            <button disabled={busy} className="btn-primary w-full disabled:opacity-50">
+              {busy ? "Adding..." : "Add plate"}
             </button>
           </form>
         </Card>
 
-        <Card className="p-0 lg:col-span-2 border-t-2 border-t-amber-400 overflow-hidden">
-          <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-gray-950 text-gray-600 border-b border-gray-700">
+        <Card className="table-shell">
+          <table className="data-table">
+            <thead>
               <tr>
-                <th className="px-4 py-2 uppercase tracking-widest">Plate</th>
-                <th className="px-4 py-2 uppercase tracking-widest">Label</th>
-                <th className="px-4 py-2 uppercase tracking-widest">Added</th>
-                <th className="px-4 py-2 uppercase tracking-widest">Status</th>
-                <th className="px-4 py-2"></th>
+                <th>Plate</th>
+                <th>Label</th>
+                <th>Added</th>
+                <th>Status</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {entries.map((w) => (
-                <tr key={w.id} className="border-t border-gray-800 hover:bg-gray-900/50">
-                  <td className="px-4 py-2"><Plate text={w.plate_text} /></td>
-                  <td className="px-4 py-2 text-gray-300">
-                    {w.label || "–"}
-                    {w.reason && <div className="text-[10px] text-gray-600">{w.reason}</div>}
+              {entries.map((entry) => (
+                <tr key={entry.id}>
+                  <td>
+                    <Plate text={entry.plate_text} />
                   </td>
-                  <td className="px-4 py-2 text-gray-500 text-[10px]">{formatTime(w.created_at).split(' ')[1] || "–"}</td>
-                  <td className="px-4 py-2">
+                  <td className="text-gray-300">
+                    {entry.label || "-"}
+                    {entry.reason && <div className="mt-1 text-xs text-gray-500">{entry.reason}</div>}
+                  </td>
+                  <td className="text-gray-500">{formatTime(entry.created_at).split(" ")[1] || "-"}</td>
+                  <td>
                     <button
-                      onClick={() => apiToggleWatch(w.id, !w.active).then(load)}
-                      className={`inline-flex items-center gap-1.5 border px-2 py-1 text-[10px] uppercase font-mono ${
-                        w.active
-                          ? "border-amber-500 bg-amber-400 text-black font-bold"
+                      onClick={() => apiToggleWatch(entry.id, !entry.active).then(load)}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
+                        entry.active
+                          ? "border-red-400/50 bg-red-400/10 text-red-300"
                           : "border-gray-700 bg-gray-950 text-gray-500"
-                      } transition`}
+                      }`}
                     >
-                      <span className={`led ${w.active ? "led-red" : ""}`} />
-                      {w.active ? "ARMED" : "OFF"}
+                      <span className={`led ${entry.active ? "led-red" : ""}`} />
+                      {entry.active ? "Armed" : "Off"}
                     </button>
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="text-right">
                     <button
-                      onClick={() => apiDeleteWatch(w.id).then(load)}
-                      className="text-gray-600 hover:text-white transition"
+                      onClick={() => apiDeleteWatch(entry.id).then(load)}
+                      className="btn-secondary px-3 py-1.5 text-sm"
                     >
-                      ×
+                      Delete
                     </button>
                   </td>
                 </tr>
               ))}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-600">
-                    — no entries —
+                  <td colSpan={5} className="text-center text-gray-500">
+                    No watchlist entries.
                   </td>
                 </tr>
               )}

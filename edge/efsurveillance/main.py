@@ -43,7 +43,7 @@ logger = logging.getLogger("efsurveillance")
 _MAX_CONSECUTIVE_READ_FAILURES = 30
 # Cap frame capture so an instant source (synthetic) doesn't busy-spin the CPU.
 # A real webcam blocks in read() at its own frame rate, so this only needs to
-# sit ABOVE the hardware rate — the camera itself is the pace-setter.
+# sit ABOVE the hardware rate - the camera itself is the pace-setter.
 _CAPTURE_FPS_CAP = 90.0
 
 # A tiny valid 1x1 JPEG, used as the saved still when there's no real frame
@@ -167,10 +167,17 @@ class SurveillanceApp:
         self.recognizer = create_recognizer(cfg.detector.backend, cfg.detector)
         self.tracker = TrackManager(
             axis=cfg.events.direction_axis, invert=cfg.events.direction_invert,
-            miss_grace=75, min_frames=4,
-            min_move_frac=cfg.events.min_move_frac)
+            miss_grace=cfg.events.track_miss_grace,
+            min_frames=cfg.events.track_min_frames,
+            min_move_frac=cfg.events.min_move_frac,
+            max_age_seconds=cfg.events.track_max_age_seconds)
         if getattr(cfg.detector, "stabilize_tracks", True):
-            self.track_stabilizer = TrackStabilizer()
+            self.track_stabilizer = TrackStabilizer(
+                max_missing=cfg.detector.stabilizer_max_missing,
+                min_iou=cfg.detector.stabilizer_min_iou,
+                max_center_dist_frac=cfg.detector.stabilizer_max_center_dist_frac,
+                smooth=cfg.detector.stabilizer_smooth,
+            )
         self.uploader = Uploader(cfg.uploader, self.events, camera_id=cfg.camera.id)
         self.uploader.start()
         self.live = LivePusher(
@@ -289,7 +296,7 @@ class SurveillanceApp:
 
     def _vehicle_profile(self, ft) -> tuple[Optional[bytes], Optional[list]]:
         """The best SIDE-view crop of a finished pass (as JPEG bytes) plus its
-        appearance fingerprint. Real frames only — never synthesized, and an
+        appearance fingerprint. Real frames only - never synthesized, and an
         unusable crop honestly returns (None, None)."""
         frame = ft.profile_frame if ft.profile_frame is not None else ft.frame
         bbox = ft.profile_bbox if ft.profile_bbox is not None else ft.bbox
@@ -323,7 +330,7 @@ class SurveillanceApp:
         """Shared tail: save the annotated stills and log one vehicle event.
 
         ``event_uuid`` ties an instant provisional event ("vehicle in view",
-        ``pending=True``) to its final enriched commit — same id, one log row
+        ``pending=True``) to its final enriched commit - same id, one log row
         that updates in place instead of a duplicate."""
         cfg = self.cfg
         # A real person-count (from the detector) wins; else the recognizer's
@@ -333,7 +340,7 @@ class SurveillanceApp:
         base = f"{cfg.camera.id}_{ts}"
         plate_text = plate.text if plate and plate.text else None
         # Prefer the real plate box from the ALPR. Only the mock/synthetic demo
-        # gets an estimated stand-in box — a real photo never gets a fake box.
+        # gets an estimated stand-in box - a real photo never gets a fake box.
         is_real_frame = getattr(frame, "shape", None) is not None
         plate_box = (plate.bbox if plate and plate.bbox
                      else (annotate.synth_plate_bbox(bbox)
@@ -341,7 +348,7 @@ class SurveillanceApp:
         make_model = " ".join(p for p in [attrs.make, attrs.model] if p)
         label = " ".join(p for p in [(attrs.color or "").title(), make_model] if p) \
             or vehicle_type
-        label = f"{label}  ·  {vehicle_type.upper()} {direction.upper()}"
+        label = f"{label}  -  {vehicle_type.upper()} {direction.upper()}"
 
         image_path = _write_bytes(
             cfg.image_dir / f"{base}.jpg",
@@ -398,7 +405,7 @@ class SurveillanceApp:
         )
         if not pending:
             self._logged += 1
-        # New event on the books → push it to the console NOW, not next poll.
+        # New event on the books -> push it to the console NOW, not next poll.
         if self.uploader is not None:
             try:
                 self.uploader.kick()
@@ -408,7 +415,7 @@ class SurveillanceApp:
             "*** VEHICLE%s *** %s %s plate=%s %s%s",
             " (in view)" if pending else "",
             f"{attrs.color or '?'} {make_model}".strip(), vehicle_type,
-            (plate_text or "—"), direction,
+            (plate_text or "-"), direction,
             f"  [{attrs.company_name}]" if attrs.company_name else "",
         )
 
@@ -472,9 +479,9 @@ class SurveillanceApp:
                      profile_still=profile_still, extra_meta=extra_meta)
 
     def _commit_provisional(self, snap, settings: dict) -> None:
-        """A vehicle just CONFIRMED in view → put it on the log NOW, with a
+        """A vehicle just CONFIRMED in view -> put it on the log NOW, with a
         photo and whatever the plate reads say so far. The same row is
-        enriched (fused plate, direction, best frame) when the pass ends —
+        enriched (fused plate, direction, best frame) when the pass ends -
         `_commit_tracked` reuses the snapshot's event_uuid.
 
         Kept deliberately light: company OCR (the slow part) is skipped here
@@ -563,14 +570,14 @@ class SurveillanceApp:
             if det.track_id is None:
                 continue
             if not self.tracker.has_moved(det.track_id):
-                continue  # parked car — don't burn OCR on scenery
+                continue  # parked car - don't burn OCR on scenery
             if (det.bbox[3] - det.bbox[1]) < dcfg.alpr_min_vehicle_px:
-                continue  # too far away — the plate would be a smear
+                continue  # too far away - the plate would be a smear
             if self.tracker.plate_read_count(det.track_id) >= dcfg.alpr_reads_per_track:
                 continue  # budget spent for this vehicle
             lock_n = getattr(dcfg, "alpr_lock_after_agree", 0)
             if lock_n > 0 and self.tracker.plate_locked(det.track_id, min_agree=lock_n):
-                continue  # consensus already locked — save the CPU for detection
+                continue  # consensus already locked - save the CPU for detection
             last_read = self._last_plate_read_seq.get(det.track_id, -10**9)
             if (det_seq - last_read) < read_every:
                 continue
@@ -578,7 +585,7 @@ class SurveillanceApp:
             if blur_gate > 0:
                 s = quick_sharpness(frame, det.bbox)
                 if 0.0 <= s < blur_gate:
-                    continue  # motion-blurred frame — a read would only add noise
+                    continue  # motion-blurred frame - a read would only add noise
             try:
                 self._last_plate_read_seq[det.track_id] = det_seq
                 res = self.plate_reader.read(frame, det.bbox)
@@ -673,7 +680,7 @@ class SurveillanceApp:
 
             settings = self._settings()
             self._annotate_occupants(detections, settings)
-            # Untracked detections (mock detector) → debounced per-frame logging.
+            # Untracked detections (mock detector) -> debounced per-frame logging.
             for det in detections:
                 if det.track_id is not None:
                     continue
@@ -683,7 +690,7 @@ class SurveillanceApp:
                 except Exception as exc:
                     logger.warning("Failed to handle detection %s: %s", det, exc)
 
-            # Tracked detections (real YOLO) → feed the manager; it logs each
+            # Tracked detections (real YOLO) -> feed the manager; it logs each
             # vehicle once, on exit, with a direction.
             if self.tracker is not None:
                 tracked = [d for d in detections
@@ -699,7 +706,7 @@ class SurveillanceApp:
                     logger.warning("Tracker update failed: %s", exc)
                 self._collect_plate_reads(frame, tracked, settings, det_seq)
                 # A vehicle that just became real goes on the log IMMEDIATELY
-                # (pending row) — the finalize above enriches it later.
+                # (pending row) - the finalize above enriches it later.
                 for snap in self.tracker.pop_new_confirmed():
                     if not getattr(self.cfg.events, "provisional_events", True):
                         continue
@@ -714,7 +721,7 @@ class SurveillanceApp:
             try:
                 self._publish_overlay(frame, detections)
             except Exception:
-                pass  # the overlay is cosmetic — never break detection
+                pass  # the overlay is cosmetic - never break detection
 
             elapsed = time.monotonic() - loop_start
             if elapsed < interval:

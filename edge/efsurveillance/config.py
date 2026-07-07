@@ -50,7 +50,8 @@ class SourceConfig:
     """Where video frames come from."""
 
     backend: str = "auto"           # auto | synthetic | picamera2 | usb | rtsp | file
-    # Pi 5 ALPR profiles: sharp_read | fast_lane | night_boost | pi_economy | custom.
+    # Hardware profiles: sharp_read | fast_lane | track_boost |
+    # workstation_track | gpu_detail | night_boost | edge_economy | custom.
     # A named profile moves capture resolution, FPS, live preview cost and ALPR
     # OCR budgets together. Use custom when hand-tuning every value.
     quality_profile: str = "sharp_read"
@@ -69,7 +70,7 @@ class SourceConfig:
     # driver's defaults alone.
     fourcc: str = "MJPG"
     fps: float = 30.0
-    # Pi / UVC quality controls. Unsupported drivers ignore these best-effort.
+    # Camera quality controls. Unsupported drivers ignore these best-effort.
     shutter_us: int = 0
     analogue_gain: float = 0.0
     denoise: str = ""
@@ -84,9 +85,9 @@ class SourceConfig:
 class DetectorConfig:
     """The AI stack. ``backend`` drives detection, plate reading and attributes.
 
-    * ``mock``  — synthetic vehicles; no ML deps (laptop demo / CI).
-    * ``yolo``  — real vehicle detection via ultralytics YOLO (needs PyTorch).
-    * ``auto``  — try real, fall back to mock with a loud warning.
+    * ``mock``  - synthetic vehicles; no ML deps (laptop demo / CI).
+    * ``yolo``  - real vehicle detection via ultralytics YOLO (needs PyTorch).
+    * ``auto``  - try real, fall back to mock with a loud warning.
     """
 
     backend: str = "auto"
@@ -99,7 +100,7 @@ class DetectorConfig:
     imgsz: int = 640                    # inference size; 480 = faster, 960 = more accurate on small/distant plates
     iou: float = 0.5                    # NMS IoU; lower = fewer overlapping dup boxes
     max_det: int = 20                   # cap detections per frame (an entrance won't have 300 cars)
-    half: bool = False                  # FP16 — set true ONLY on CUDA, ~2x faster
+    half: bool = False                  # FP16 - set true ONLY on CUDA, ~2x faster
     warmup: bool = True                 # run one dummy inference at startup so the FIRST real car isn't missed
     agnostic_nms: bool = False          # class-agnostic NMS (helps when truck/bus boxes overlap)
     # Tracker tuning file (ultralytics format). Empty = the bundled
@@ -113,7 +114,7 @@ class DetectorConfig:
 
     # --- ALPR (license-plate reading) tuning ------------------------------- #
     # The plate is read on EVERY frame while a vehicle is tracked, and all the
-    # reads are fused (character-level voting) when the vehicle leaves — far
+    # reads are fused (character-level voting) when the vehicle leaves - far
     # more accurate than trusting any single frame.
     alpr_reads_per_track: int = 10       # budget: max OCR reads per vehicle pass
     alpr_min_vehicle_px: int = 56        # skip OCR while the vehicle box is tinier than this (px tall)
@@ -122,18 +123,22 @@ class DetectorConfig:
     alpr_format_correction: bool = True  # repair O<->0 / I<->1 style mixups ONLY when a real
     #                                      plate layout confirms it (doubtful chars only)
     alpr_lock_after_agree: int = 3       # stop OCR for a vehicle once this many confident reads
-    #                                      agree exactly (0 = keep reading; saves Pi CPU)
+    #                                      agree exactly (0 = keep reading)
     alpr_skip_blur_below: float = 8.0    # skip OCR on frames blurrier than this (Laplacian
     #                                      variance of the downscaled vehicle crop; 0 = off)
     alpr_read_every_n: int = 2            # throttle OCR to every N detector frames per track
     stabilize_tracks: bool = True         # bridge YOLO/ByteTrack id churn with local IOU matching
+    stabilizer_max_missing: int = 120      # detector cycles a disappeared vehicle can be bridged
+    stabilizer_min_iou: float = 0.06       # lower = more forgiving during partial occlusion
+    stabilizer_max_center_dist_frac: float = 0.20
+    stabilizer_smooth: float = 0.45
 
     # --- Make/model classification (optional, OFF by default) ------------- #
     # A make/model classifier is only trustworthy once you've MEASURED it on
     # real entrance-cam crops (side/angle views, not clean catalog photos). So
     # it stays off until you (a) supply a model and (b) confirm its accuracy
     # with tools/measure_make_model.py. Until then make/model are left blank
-    # rather than guessed — no fake data. See edge/MAKEMODEL.md.
+    # rather than guessed - no fake data. See edge/MAKEMODEL.md.
     makemodel_backend: str = "off"          # off | onnx
     makemodel_model_path: str = ""          # path to the .onnx classifier
     makemodel_labels_path: str = ""         # text file, one label per line (order = class index)
@@ -156,9 +161,12 @@ class EventsConfig:
     direction_invert: bool = False      # flip if in/out come out backwards
     # A tracked vehicle must travel at least this fraction of the frame (or
     # clearly approach/leave head-on) before it becomes an event. Parked cars
-    # never do — so they are never logged, no matter how often the tracker
+    # never do - so they are never logged, no matter how often the tracker
     # re-detects them when something drives past.
     min_move_frac: float = 0.05
+    track_miss_grace: int = 90
+    track_min_frames: int = 4
+    track_max_age_seconds: float = 45.0
     provisional_events: bool = True
 
 
@@ -299,7 +307,7 @@ def load_config(config_path: Optional[str | os.PathLike] = None) -> Config:
 
 
 def _apply_quality_profile(cfg: Config) -> None:
-    """Apply a named Pi 5 ALPR capture profile after yaml/env overrides."""
+    """Apply a named ALPR capture/tracking profile after yaml/env overrides."""
     from .quality import profile_for
 
     profile = profile_for(cfg.source.quality_profile)

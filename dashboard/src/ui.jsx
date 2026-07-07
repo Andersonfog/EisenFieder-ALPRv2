@@ -1,5 +1,3 @@
-// Shared UI helpers: vehicle theming, badges, formatters, authed image loader.
-
 import { useEffect, useState } from "react";
 import { fetchMediaObjectUrl, openLiveStream } from "./api";
 
@@ -10,31 +8,30 @@ export const pretty = (s) =>
 
 export function TypeBadge({ type }) {
   return (
-    <span className="inline-flex items-center gap-1 border border-gray-600 bg-gray-900 px-2 py-0.5 text-xs font-mono uppercase text-gray-300">
-      {pretty(type || "unknown").slice(0, 3)}
+    <span className="inline-flex items-center gap-1 rounded-md border border-gray-700 bg-gray-900/70 px-2 py-0.5 text-xs text-gray-300">
+      {pretty(type || "unknown")}
     </span>
   );
 }
 
 export function DirectionBadge({ direction }) {
   const map = {
-    in: { label: "IN", arrow: "→", cls: "border-gray-600 bg-gray-900 text-amber-300" },
-    out: { label: "OUT", arrow: "←", cls: "border-gray-600 bg-gray-900 text-gray-300" },
-    unknown: { label: "UNK", arrow: "–", cls: "border-gray-700 bg-gray-900 text-gray-500" },
+    in: { label: "In", arrow: "->", cls: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
+    out: { label: "Out", arrow: "<-", cls: "border-gray-600 bg-gray-900/70 text-gray-300" },
+    unknown: { label: "Unknown", arrow: "-", cls: "border-gray-700 bg-gray-900/70 text-gray-500" },
   };
   const d = map[direction] || map.unknown;
   return (
-    <span className={`inline-flex items-center gap-1 border px-2 py-0.5 text-xs font-mono uppercase ${d.cls}`}>
+    <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${d.cls}`}>
       {d.arrow} {d.label}
     </span>
   );
 }
 
 export function Plate({ text }) {
-  if (!text)
-    return <span className="text-xs font-mono text-gray-600">–––––––</span>;
+  if (!text) return <span className="text-xs text-gray-600">unknown</span>;
   return (
-    <span className="border-2 border-gray-200 bg-black px-2 py-1 font-mono text-xs font-bold tracking-wider text-gray-100">
+    <span className="plate-text rounded-md border border-gray-500 bg-gray-950 px-2 py-1 text-xs font-semibold text-gray-100">
       {text}
     </span>
   );
@@ -48,14 +45,13 @@ export function Card({ children, className = "", ...rest }) {
   );
 }
 
-// Square panel-mount indicator lamp. color: "green" | "amber" | "red" | "off"
 export function Led({ color = "off", blink = false, className = "" }) {
   const c = { green: "led-green", amber: "led-amber", red: "led-red", off: "" }[color] || "";
   return <span className={`led ${c} ${blink ? "led-blink" : ""} ${className}`} />;
 }
 
 export function timeAgo(iso) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
   if (secs < 60) return `${secs}s ago`;
   const mins = Math.floor(secs / 60);
@@ -65,10 +61,8 @@ export function timeAgo(iso) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export const formatTime = (iso) => (iso ? new Date(iso).toLocaleString() : "—");
+export const formatTime = (iso) => (iso ? new Date(iso).toLocaleString() : "-");
 
-// Loads an owner-only image by fetching it with the auth token (a plain <img>
-// can't, since it wouldn't send the bearer token).
 export function AuthImage({ url, alt = "", className = "" }) {
   const [src, setSrc] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -93,29 +87,23 @@ export function AuthImage({ url, alt = "", className = "" }) {
     };
   }, [url]);
 
-  if (!url || failed)
+  if (!url || failed) {
     return (
-      <div
-        className={`flex items-center justify-center bg-black text-[10px] text-gray-700 font-mono ${className}`}
-      >
-        — no image —
+      <div className={`flex items-center justify-center bg-gray-950 text-[10px] text-gray-600 ${className}`}>
+        no image
       </div>
     );
-  if (!src)
+  }
+  if (!src) {
     return (
-      <div
-        className={`flex items-center justify-center bg-black text-[10px] text-gray-700 font-mono ${className}`}
-      >
-        loading…
+      <div className={`flex items-center justify-center bg-gray-950 text-[10px] text-gray-600 ${className}`}>
+        loading...
       </div>
     );
+  }
   return <img src={src} alt={alt} className={className} />;
 }
 
-// Owner-only live preview for one camera, fed by a held-open MJPEG stream
-// (see `openLiveStream`) rather than re-fetching a frame on a timer. Measures
-// the achieved frame rate and reports it via `onFps`. Marks itself offline if
-// no frame arrives for a few seconds (stream frozen / camera stopped pushing).
 export function LiveImage({ camId, onFps, className = "" }) {
   const [src, setSrc] = useState(null);
   const [online, setOnline] = useState(false);
@@ -143,7 +131,6 @@ export function LiveImage({ camId, onFps, className = "" }) {
       lastObj = url;
       setSrc(url);
       setOnline(true);
-      // Measure achieved receive-rate over the last ~30 frames.
       const now = performance.now();
       stamps.push(now);
       if (stamps.length > 30) stamps.shift();
@@ -165,28 +152,28 @@ export function LiveImage({ camId, onFps, className = "" }) {
   }, [camId, onFps]);
 
   return (
-    <div className={`relative overflow-hidden bg-black ${className}`}>
+    <div className={`relative overflow-hidden rounded-lg bg-black ${className}`}>
       {src ? (
         <img src={src} alt="live" className="h-full w-full object-contain" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-xs font-mono text-gray-700">
-          {camId ? "connecting…" : "select camera"}
+        <div className="flex h-full w-full items-center justify-center text-xs text-gray-600">
+          {camId ? "connecting..." : "select camera"}
         </div>
       )}
       {online && (
-        <span className="absolute left-2 top-2 border border-gray-600 bg-black/80 px-2 py-1 font-mono text-[10px] text-amber-300">
+        <span className="absolute left-3 top-3 rounded-md border border-gray-600 bg-black/80 px-2 py-1 text-[10px] text-amber-300">
           {fps.toFixed(1)} fps
         </span>
       )}
       <span
-        className={`absolute right-2 top-2 inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono border uppercase tracking-widest ${
+        className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] uppercase ${
           online
-            ? "border-red-400/60 bg-black/80 text-red-300 font-bold"
+            ? "border-red-400/60 bg-black/80 text-red-300"
             : "border-gray-700 bg-black/80 text-gray-500"
         }`}
       >
-        <span className={`led ${online ? "led-red led-blink" : ""}`} />
-        {online ? "LIVE" : "OFFLINE"}
+        <Led color={online ? "red" : "off"} blink={online} />
+        {online ? "Live" : "Offline"}
       </span>
     </div>
   );

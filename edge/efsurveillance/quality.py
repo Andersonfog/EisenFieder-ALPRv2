@@ -1,4 +1,9 @@
-"""ALPR capture profiles tuned for Raspberry Pi 5 edge units."""
+"""Hardware-agnostic ALPR capture and tracking profiles.
+
+Profiles tune capture resolution, detector cadence, live preview cost, and OCR
+budget together. They are not hardware locks: use the constrained profile for
+small edge boxes, and the workstation/GPU profiles when power is available.
+"""
 
 from __future__ import annotations
 
@@ -29,7 +34,7 @@ class QualityProfile:
 PROFILES: dict[str, QualityProfile] = {
     "sharp_read": QualityProfile(
         id="sharp_read",
-        label="Sharp read",
+        label="High detail",
         width=2304,
         height=1296,
         fps=24.0,
@@ -48,7 +53,7 @@ PROFILES: dict[str, QualityProfile] = {
     ),
     "fast_lane": QualityProfile(
         id="fast_lane",
-        label="Fast lane",
+        label="Fast traffic",
         width=1920,
         height=1080,
         fps=60.0,
@@ -67,7 +72,7 @@ PROFILES: dict[str, QualityProfile] = {
     ),
     "track_boost": QualityProfile(
         id="track_boost",
-        label="Track boost",
+        label="Tracking priority",
         width=1280,
         height=720,
         fps=60.0,
@@ -86,7 +91,7 @@ PROFILES: dict[str, QualityProfile] = {
     ),
     "night_boost": QualityProfile(
         id="night_boost",
-        label="Night boost",
+        label="Low light",
         width=1920,
         height=1080,
         fps=20.0,
@@ -103,9 +108,47 @@ PROFILES: dict[str, QualityProfile] = {
         alpr_skip_blur_below=6.0,
         alpr_read_every_n=2,
     ),
-    "pi_economy": QualityProfile(
-        id="pi_economy",
-        label="Pi economy",
+    "workstation_track": QualityProfile(
+        id="workstation_track",
+        label="Workstation tracking",
+        width=1920,
+        height=1080,
+        fps=60.0,
+        process_fps=60.0,
+        live_fps=30.0,
+        live_max_width=1280,
+        live_jpeg_quality=76,
+        fourcc="MJPG",
+        shutter_us=667,
+        analogue_gain=1.0,
+        denoise="off",
+        alpr_reads_per_track=12,
+        alpr_min_vehicle_px=48,
+        alpr_skip_blur_below=12.0,
+        alpr_read_every_n=2,
+    ),
+    "gpu_detail": QualityProfile(
+        id="gpu_detail",
+        label="GPU detail",
+        width=2560,
+        height=1440,
+        fps=30.0,
+        process_fps=30.0,
+        live_fps=20.0,
+        live_max_width=1440,
+        live_jpeg_quality=82,
+        fourcc="MJPG",
+        shutter_us=1000,
+        analogue_gain=1.0,
+        denoise="off",
+        alpr_reads_per_track=18,
+        alpr_min_vehicle_px=42,
+        alpr_skip_blur_below=9.0,
+        alpr_read_every_n=1,
+    ),
+    "edge_economy": QualityProfile(
+        id="edge_economy",
+        label="Edge economy",
         width=1280,
         height=720,
         fps=30.0,
@@ -131,16 +174,20 @@ def profile_for(profile_id: str | None) -> QualityProfile | None:
     key = str(profile_id).strip().lower().replace("-", "_")
     if key in {"", "custom", "manual"}:
         return None
+    if key == "pi_economy":
+        key = "edge_economy"
     return PROFILES.get(key)
 
 
 def profile_options() -> list[dict]:
     purpose = {
         "sharp_read": "plate detail",
-        "fast_lane": "motion freeze",
+        "fast_lane": "fast traffic",
         "track_boost": "smooth tracking",
         "night_boost": "low light / IR",
-        "pi_economy": "low heat",
+        "workstation_track": "max tracking cadence",
+        "gpu_detail": "high-resolution GPU",
+        "edge_economy": "low power",
     }
     return [
         {

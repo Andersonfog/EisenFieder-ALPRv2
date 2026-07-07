@@ -1,25 +1,28 @@
 export default function Policy() {
   return (
-    <div className="p-8 max-w-4xl space-y-6">
-      <h1 className="stencil text-sm text-gray-400">Policy</h1>
+    <div className="app-page max-w-4xl space-y-6">
+      <div>
+        <p className="page-kicker">Governance</p>
+        <h1 className="page-title">Policy</h1>
+      </div>
 
-      <section className="space-y-4 text-xs font-mono leading-relaxed">
+      <section className="space-y-5 text-sm leading-relaxed">
         <div>
-          <h2 className="text-sm font-bold text-gray-300 mb-2 uppercase">1. Purpose</h2>
+          <h2 className="mb-2 font-semibold text-gray-300">1. Purpose</h2>
           <p className="text-gray-400">
             EisenFieder Surveillance operates a single-tenant, on-premises business entrance camera system. Every vehicle entering the premises is detected in real-time using YOLO, license plates are read via fast-alpr, and the system records make, model, color, occupant count, and any visible company branding. All events are logged to a central FastAPI + SQLite backend. This policy enforces strict rules for system use, data protection, access, and compliance. All footage and data remain exclusively on-premises and owner-controlled. No data is ever transmitted to third-party cloud services.
           </p>
         </div>
 
         <div>
-          <h2 className="text-sm font-bold text-gray-300 mb-2 uppercase">2. Scope</h2>
+          <h2 className="mb-2 font-semibold text-gray-300">2. Scope</h2>
           <p className="text-gray-400">
             This policy applies to all owners, operators, administrators, employees, contractors, and any authorized personnel interacting with the EisenFieder Surveillance system, cameras, backend console, or associated data.
           </p>
         </div>
 
         <div>
-          <h2 className="text-sm font-bold text-gray-300 mb-2 uppercase">3. Data Collection and Logging</h2>
+          <h2 className="mb-2 font-semibold text-gray-300">3. Data Collection and Logging</h2>
           <ul className="text-gray-400 space-y-1 list-disc list-inside">
             <li>Every vehicle passing through monitored entrances must be detected and logged without exception.</li>
             <li>Captured data includes: timestamp, license plate, make/model/color, occupant count, vehicle branding, camera ID, and full video snippet.</li>
@@ -29,7 +32,7 @@ export default function Policy() {
         </div>
 
         <div>
-          <h2 className="text-sm font-bold text-gray-300 mb-2 uppercase">4. Data Storage and Retention</h2>
+          <h2 className="mb-2 font-semibold text-gray-300">4. Data Storage and Retention</h2>
           <ul className="text-gray-400 space-y-1 list-disc list-inside">
             <li>All data and footage remain 100% on-premises. Cloud storage of any kind is forbidden.</li>
             <li>Retention period: Minimum 90 days for all logs and footage. Owner may extend this.</li>
@@ -39,7 +42,7 @@ export default function Policy() {
         </div>
 
         <div>
-          <h2 className="text-sm font-bold text-gray-300 mb-2 uppercase">5. Access Control</h2>
+          <h2 className="mb-2 font-semibold text-gray-300">5. Access Control</h2>
           <ul className="text-gray-400 space-y-1 list-disc list-inside">
             <li>Access to the central console is restricted to the business owner and personnel explicitly approved in writing.</li>
             <li>Multi-factor authentication and role-based access are mandatory.</li>
@@ -50,7 +53,7 @@ export default function Policy() {
         </div>
 
         <div>
-          <h2 className="text-sm font-bold text-gray-300 mb-2 uppercase">6. Watchlist and Alert System</h2>
+          <h2 className="mb-2 font-semibold text-gray-300">6. Watchlist and Alert System</h2>
           <ul className="text-gray-400 space-y-1 list-disc list-inside">
             <li>Owner may maintain a watchlist of license plates for instant alerts (optional Twilio SMS).</li>
             <li>Addition or removal from watchlist requires owner approval.</li>
@@ -60,7 +63,7 @@ export default function Policy() {
         </div>
 
         <div>
-          <h2 className="text-sm font-bold text-gray-300 mb-2 uppercase">7. Prohibited Actions (Zero Tolerance)</h2>
+          <h2 className="mb-2 font-semibold text-gray-300">7. Prohibited Actions (Zero Tolerance)</h2>
           <ul className="text-gray-400 space-y-1 list-disc list-inside">
             <li>Attempting to bypass, disable, or tamper with detection/logging.</li>
             <li>Using the system for personal surveillance unrelated to business operations.</li>

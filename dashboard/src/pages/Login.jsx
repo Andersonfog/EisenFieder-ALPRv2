@@ -28,24 +28,27 @@ export default function Login() {
   }
 
   const input =
-    "w-full border border-gray-700 bg-gray-950 px-3 py-2 text-sm font-mono text-gray-200 outline-none transition focus:border-amber-400";
+    "w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none transition focus:border-amber-400";
 
   return (
     <div className="flex h-screen items-center justify-center bg-shop-floor px-4">
-      <div className="w-full max-w-sm">
-        <div className="panel">
-          <div className="hazard h-2" />
-          <div className="border-b border-gray-700 px-6 py-5 text-center">
-            <h1 className="stencil text-lg text-gray-100">EISENFIEDER</h1>
-            <p className="mt-1 flex items-center justify-center gap-2 text-xs uppercase tracking-widest text-gray-500">
-              <Led color="amber" blink /> Surveillance Console
-            </p>
+      <div className="w-full max-w-md">
+        <div className="panel overflow-hidden">
+          <div className="border-b border-gray-800 px-7 py-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h1 className="text-xl font-semibold text-gray-50">EisenFieder ALPR</h1>
+                <p className="mt-1 text-sm text-gray-500">Owner console sign in</p>
+              </div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-gray-700 bg-gray-950 px-3 py-1 text-xs text-gray-400">
+                <Led color="amber" /> Local
+              </span>
+            </div>
           </div>
-          <form onSubmit={onSubmit} className="space-y-4 p-6">
+
+          <form onSubmit={onSubmit} className="space-y-4 p-7">
             <div>
-              <label className="mb-1 block text-xs font-mono uppercase tracking-widest text-gray-500">
-                email
-              </label>
+              <label className="mb-1 block text-sm text-gray-400">Email</label>
               <input
                 type="email"
                 value={email}
@@ -54,9 +57,7 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-mono uppercase tracking-widest text-gray-500">
-                password
-              </label>
+              <label className="mb-1 block text-sm text-gray-400">Password</label>
               <input
                 type="password"
                 value={password}
@@ -65,22 +66,21 @@ export default function Login() {
               />
             </div>
             {error && (
-              <div className="border border-red-400/60 bg-red-950/40 px-3 py-2 text-xs font-mono font-bold uppercase text-red-300">
+              <div className="rounded-md border border-red-400/50 bg-red-950/30 px-3 py-2 text-sm text-red-300">
                 {error}
               </div>
             )}
             <button
               type="submit"
               disabled={busy}
-              className="w-full border border-amber-500 bg-amber-400 px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest text-black transition hover:bg-amber-300 disabled:opacity-40"
+              className="w-full rounded-md bg-amber-400 px-4 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-300 disabled:opacity-50"
             >
-              {busy ? "authenticating..." : "Authenticate"}
+              {busy ? "Signing in..." : "Sign in"}
             </button>
-            <p className="text-center text-[10px] font-mono uppercase text-gray-600">
-              owner access only · encrypted · private
+            <p className="text-center text-xs text-gray-600">
+              Footage and vehicle records stay on the local system.
             </p>
           </form>
-          <div className="hazard h-2" />
         </div>
       </div>
     </div>
