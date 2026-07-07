@@ -10,15 +10,49 @@ The project is hardware agnostic. Run it on a Windows laptop with a USB camera f
 - `dashboard/` - React/Vite operations console for live view, plate log, camera settings, watchlist, and insights.
 - `edge/` - camera process that captures frames, detects/tracks vehicles, reads plates, and streams live preview.
 
-## Local USB Camera Run
+## Fast Windows USB Camera Run
 
-Use three terminals from the repository root.
+From a fresh clone on the laptop:
+
+```powershell
+install-usb.cmd
+start-usb-camera.cmd
+```
+
+That creates `.venv`, installs backend and edge USB dependencies, installs the
+dashboard packages, opens the backend, opens the dashboard, starts the USB
+camera, and opens `http://127.0.0.1:5174`.
+
+Sign in:
+
+```text
+owner@eisenfieder.local
+changeme123
+```
+
+If Windows reports the camera as index `1` or `2`, run:
+
+```powershell
+edge\check-camera.cmd
+start-usb-camera.cmd 1
+```
+
+The USB launcher uses camera id `EFS-USB-001` by default. To use a different id:
+
+```powershell
+start-usb-camera.cmd 1 EFS-USB-SIDE
+```
+
+## Manual Local Run
+
+Use three terminals from the repository root if you want to start each piece by
+hand.
 
 Terminal 1, backend:
 
 ```powershell
 cd backend
-pip install -r requirements.txt
+..\.venv\Scripts\activate
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -26,7 +60,6 @@ Terminal 2, dashboard:
 
 ```powershell
 cd dashboard
-npm install
 npm run dev -- --host 127.0.0.1 --port 5174
 ```
 
@@ -41,8 +74,9 @@ Terminal 3, USB camera:
 
 ```powershell
 cd edge
+..\.venv\Scripts\activate
 python -m tools.check_camera
-.\run-camera.cmd
+.\run-camera.cmd 0
 ```
 
 If `check_camera` cannot find the webcam, open the Windows Camera app first and make sure camera access is enabled under Windows Settings > Privacy & security > Camera.

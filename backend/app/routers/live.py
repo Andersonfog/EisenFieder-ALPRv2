@@ -1,13 +1,13 @@
 """Live camera preview (owner-only).
 
 A camera can push a low-frame-rate JPEG preview here so the owner can check the
-angle and framing from the console — without walking out to the entrance. The
+angle and framing from the console - without walking out to the entrance. The
 preview is held in memory only: it is never written to disk and never added to
 the event history. It is served only to the authenticated owner.
 
 This is a *preview*, not a recording: a few frames per second, latest-only.
 
-Single-process / single-tenant by design — the latest frame per camera lives in
+Single-process / single-tenant by design - the latest frame per camera lives in
 a module-level dict. (If you ever run the API with multiple worker processes,
 move this to Redis or a shared file; otherwise each worker keeps its own copy.)
 """
@@ -16,12 +16,15 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 
-from ..models import User
+from ..database import get_db
+from ..models import Camera, User
 from ..security import get_current_user, require_camera_auth, require_owner
 
 router = APIRouter(prefix="/api/v1/cameras", tags=["live"])
@@ -32,7 +35,7 @@ _LATEST: dict[str, tuple[bytes, float, dict]] = {}
 # camera_id -> event that fires when that camera pushes its next frame. Streams
 # sleep on this instead of polling, so a frame is forwarded the moment it lands
 # and an idle stream costs (almost) nothing. Each push consumes the event and
-# waiters create a fresh one — a simple one-shot broadcast.
+# waiters create a fresh one - a simple one-shot broadcast.
 _FRAME_EVENTS: dict[str, asyncio.Event] = {}
 
 # multipart/x-mixed-replace boundary.
@@ -110,10 +113,23 @@ STALE_SECONDS = 15.0
 MAX_FRAME_BYTES = 3_000_000
 
 
+def _touch_camera(camera_id: str, db: Session) -> None:
+    """Ensure a live-only USB camera appears in the console camera list."""
+    camera = db.get(Camera, camera_id)
+    if camera is None:
+        camera = Camera(id=camera_id, name=camera_id, status="online")
+        db.add(camera)
+    else:
+        camera.status = "online"
+    camera.last_seen = datetime.now(timezone.utc)
+    db.commit()
+
+
 @router.post("/{camera_id}/live", status_code=status.HTTP_204_NO_CONTENT)
 async def push_live_frame(
     request: Request,
     camera_id: str = Depends(require_camera_auth),
+    db: Session = Depends(get_db),
 ):
     """The edge unit pushes its latest JPEG preview (camera-authenticated).
 
@@ -138,6 +154,7 @@ async def push_live_frame(
         raise HTTPException(status_code=400, detail="Empty frame")
     if data[:2] != b"\xff\xd8":  # JPEG start-of-image marker
         raise HTTPException(status_code=415, detail="Expected a JPEG frame")
+    _touch_camera(camera_id, db)
     _store_frame(camera_id, data, _stats_from_headers(request))
 
 
@@ -153,6 +170,7 @@ def _store_frame(camera_id: str, data: bytes, stats: dict) -> None:
 async def push_live_stream(
     request: Request,
     camera_id: str = Depends(require_camera_auth),
+    db: Session = Depends(get_db),
 ):
     """The edge unit streams ALL its preview frames over ONE held-open upload
     (camera-authenticated) instead of one HTTP request per frame.
@@ -164,6 +182,7 @@ async def push_live_stream(
     Frames are published to the same in-memory slot the per-frame POST uses,
     so the owner-facing MJPEG stream doesn't care which mode the camera runs.
     """
+    _touch_camera(camera_id, db)
     buf = bytearray()
     async for chunk in request.stream():
         buf.extend(chunk)
@@ -266,7 +285,7 @@ async def stream_live_frames(
     as soon as it lands, so the console just decodes bytes as they arrive.
 
     Auth uses ``require_owner`` (not ``get_current_user``) so no DB connection
-    is pinned for the — potentially very long — lifetime of the stream.
+    is pinned for the - potentially very long - lifetime of the stream.
     """
     global _active_streams
     if _active_streams >= _MAX_CONCURRENT_STREAMS:

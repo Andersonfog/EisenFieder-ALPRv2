@@ -1,0 +1,14 @@
+# EisenFieder ALPR - Windows/laptop USB camera requirements.
+# Installs on top of requirements.txt and enables real USB capture, YOLO
+# vehicle tracking, and real license-plate OCR.
+
+-r requirements.txt
+
+opencv-python>=4.8
+numpy>=1.24
+ultralytics>=8.1
+fast-alpr>=0.4
+
+# Optional but useful for reading company names from vehicle sides. It is large,
+# so install it separately if you want branding OCR:
+#   python -m pip install "easyocr>=1.7"

@@ -7,13 +7,13 @@ echo Starting EisenFieder Surveillance...
 
 REM /D sets each window's working directory (quoted, so the space in the folder
 REM name is handled correctly). cmd /k keeps the window open and running.
-start "EisenFieder Backend" /D "%~dp0backend"   cmd /k "python -m uvicorn app.main:app --port 8000"
-start "EisenFieder Console" /D "%~dp0dashboard"  cmd /k "npm run dev"
+start "EisenFieder Backend" /D "%~dp0backend"   cmd /k "run-dev.cmd"
+start "EisenFieder Console" /D "%~dp0dashboard"  cmd /k "run-dev.cmd"
 
-REM Wait for the backend, then start a mock camera so live annotated vehicles
-REM (plate + make/model) stream into the console.
+REM Wait for the backend, then start a mock camera so demo vehicles stream into
+REM the console without requiring a webcam or AI packages.
 timeout /t 5 >nul
-start "EisenFieder Camera (mock)" /D "%~dp0edge"  cmd /k "run-camera.cmd"
+start "EisenFieder Camera (mock)" /D "%~dp0edge"  cmd /k "run-mock-camera.cmd"
 
 REM Give everything a moment, then open the browser on the address that always
 REM works (loopback, not the LAN IP).

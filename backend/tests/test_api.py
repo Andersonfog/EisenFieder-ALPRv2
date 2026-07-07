@@ -142,10 +142,34 @@ def test_register_camera_and_ingest():
     assert resp.status_code == 409
 
 
+def test_live_preview_auto_registers_dev_camera():
+    """A local USB camera should appear in the console as soon as live preview starts."""
+    camera_id = "EFS-USB-AUTO"
+    body = f"EFSF {len(FAKE_JPEG)} 20.0 5.5 profile=workstation_track\n".encode() + FAKE_JPEG
+    r = client.post(
+        f"/api/v1/cameras/{camera_id}/live/stream",
+        content=body,
+        headers={"X-Camera-Id": camera_id},
+    )
+    assert r.status_code == 204, r.text
+
+    r = client.get("/api/v1/cameras", headers=_auth())
+    assert r.status_code == 200, r.text
+    cameras = {c["id"]: c for c in r.json()}
+    assert camera_id in cameras
+    assert cameras[camera_id]["status"] == "online"
+
+    r = client.get(f"/api/v1/cameras/{camera_id}/live/status", headers=_auth())
+    assert r.status_code == 200, r.text
+    status = r.json()
+    assert status["online"] is True
+    assert status["profile"] == "workstation_track"
+
+
 def test_live_event_updates_in_place():
     """The edge logs a provisional row the instant a vehicle is confirmed
     (pending=true, maybe no plate yet), then enriches the SAME row when the
-    pass ends — one event in the log, not two."""
+    pass ends - one event in the log, not two."""
     r = _ingest(event_uuid="evt-live-1", plate_text=None, direction="unknown",
                 pending=True)
     assert r.status_code == 201, r.text
